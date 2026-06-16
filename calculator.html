@@ -103,6 +103,7 @@
             const calcTotal = (season) => {
                 let totalRentals = 0, totalNeeded = 0, totalHave = 0, totalToOrder = 0;
                 cities.forEach(c => {
+                    if (!season[c]) return;
                     const calc = calcCity(season[c]);
                     totalRentals += parseFloat(calc.rentals);
                     totalNeeded += calc.needed;
@@ -113,20 +114,19 @@
             };
             const prevTotal = calcTotal(prevSeason);
             const newTotal = calcTotal(newSeason);
+            const updateField = (setSeason, city, field, value) => {
+                setSeason(prev => ({ ...prev, [city]: { ...prev[city], [field]: value } }));
+            };
             const addCity = () => {
                 const name = `City ${cities.length + 1}`;
                 setCities([...cities, name]);
-                setPrevSeason({ ...prevSeason, [name]: { park: 1000, frequency: 3.0, have: 2 } });
-                setNewSeason({ ...newSeason, [name]: { park: 1000, frequency: 3.0, have: 2 } });
+                setPrevSeason(prev => ({ ...prev, [name]: { park: 1000, frequency: 3.0, have: 2 } }));
+                setNewSeason(prev => ({ ...prev, [name]: { park: 1000, frequency: 3.0, have: 2 } }));
             };
             const deleteCity = (c) => {
                 setCities(cities.filter(x => x !== c));
-                const p = { ...prevSeason };
-                delete p[c];
-                setPrevSeason(p);
-                const n = { ...newSeason };
-                delete n[c];
-                setNewSeason(n);
+                setPrevSeason(prev => { const p = { ...prev }; delete p[c]; return p; });
+                setNewSeason(prev => { const n = { ...prev }; delete n[c]; return n; });
             };
             const exportConfig = () => {
                 const data = JSON.stringify({ params, cities, prevSeason, newSeason }, null, 2);
@@ -142,17 +142,17 @@
             const cardBg = isDark ? 'bg-slate-700/50' : 'bg-white';
             const inputBg = isDark ? 'bg-slate-700 text-white border-slate-500' : 'bg-slate-50 text-slate-900 border-slate-300';
             const border = isDark ? 'border-slate-600' : 'border-slate-300';
-            const Row = ({ city, data, season }) => {
+            const Row = ({ city, data, setSeason }) => {
                 const calc = calcCity(data);
                 return (
                     <tr className={`border-b ${border} ${isDark ? 'hover:bg-slate-700/50' : 'hover:bg-slate-100'}`}>
                         <td className={`px-4 py-3 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{city}</td>
-                        <td className="px-4 py-3"><input type="number" value={data.park} onChange={e => season[city].park = parseFloat(e.target.value) || 0} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
-                        <td className="px-4 py-3"><input type="number" step="0.01" value={data.frequency} onChange={e => season[city].frequency = parseFloat(e.target.value) || 0} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
+                        <td className="px-4 py-3"><input type="number" value={data.park} onChange={e => updateField(setSeason, city, 'park', parseFloat(e.target.value) || 0)} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
+                        <td className="px-4 py-3"><input type="number" step="0.01" value={data.frequency} onChange={e => updateField(setSeason, city, 'frequency', parseFloat(e.target.value) || 0)} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
                         <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{calc.rentals}</td>
                         <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{calc.swaps}</td>
                         <td className={`px-4 py-3 font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{calc.needed}</td>
-                        <td className="px-4 py-3"><input type="number" value={data.have} onChange={e => season[city].have = parseFloat(e.target.value) || 0} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
+                        <td className="px-4 py-3"><input type="number" value={data.have} onChange={e => updateField(setSeason, city, 'have', parseFloat(e.target.value) || 0)} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
                         <td className={`px-4 py-3 font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>{calc.toOrder}</td>
                     </tr>
                 );
@@ -198,7 +198,7 @@
                                 {[{ key: 'slots', label: t.slots }, { key: 'chargeTime', label: t.chargeTime }, { key: 'hoursPerDay', label: t.hoursPerDay }].map(({ key, label }) => (
                                     <div key={key}>
                                         <label className={`text-sm block mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{label}</label>
-                                        <input type="number" step="0.1" value={params[key]} onChange={e => setParams({ ...params, [key]: parseFloat(e.target.value) })} className={`w-full px-3 py-2 rounded border ${inputBg}`} />
+                                        <input type="number" step="0.1" value={params[key]} onChange={e => setParams({ ...params, [key]: parseFloat(e.target.value) || 0 })} className={`w-full px-3 py-2 rounded border ${inputBg}`} />
                                     </div>
                                 ))}
                             </div>
@@ -223,7 +223,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {cities.map(c => <Row key={c} city={c} data={prevSeason[c]} season={prevSeason} />)}
+                                        {cities.map(c => prevSeason[c] && <Row key={c} city={c} data={prevSeason[c]} setSeason={setPrevSeason} />)}
                                         <tr className={`${isDark ? 'bg-slate-800' : 'bg-slate-200'} border-t-2 border-amber-600 font-bold`}>
                                             <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{t.total}</td>
                                             <td className="px-4 py-3">{Object.values(prevSeason).reduce((s, d) => s + d.park, 0)}</td>
@@ -255,286 +255,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {cities.map(c => <Row key={c} city={c} data={newSeason[c]} season={newSeason} />)}
-                                        <tr className={`${isDark ? 'bg-slate-800' : 'bg-slate-200'} border-t-2 border-amber-600 font-bold`}>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{t.total}</td>
-                                            <td className="px-4 py-3">{Object.values(newSeason).reduce((s, d) => s + d.park, 0)}</td>
-                                            <td colSpan="2"></td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{newTotal.totalRentals.toFixed(0)}</td>
-                                            <td></td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{newTotal.totalNeeded}</td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{newTotal.totalHave}</td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-green-400' : 'text-green-600'}`}>{newTotal.totalToOrder}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-        ReactDOM.createRoot(document.getElementById('root')).render(<CabinetCalculator />);
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JET Brasil Cabinet Calculator</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
-<body>
-    <div id="root"></div>
-    <script type="text/babel">
-        const { useState } = React;
-        const translations = {
-            pt: {
-                title: 'JET Brasil Calculadora de Gabinetes',
-                subtitle: 'Dinâmico • Configurável • Cálculos em tempo real',
-                citiesManagement: 'Gerenciar Cidades',
-                addCity: 'Adicionar Cidade',
-                deleteCity: 'Deletar Cidade',
-                exportConfig: 'Exportar Config',
-                totalCities: 'Total de cidades',
-                modelParameters: 'Parâmetros do Modelo',
-                slots: 'Slots por Gabinete',
-                chargeTime: 'Tempo de Recarga',
-                hoursPerDay: 'Horas por Dia',
-                ridesPerBattery: 'Viagens por Bateria',
-                bufferCoeff: 'Coef. de Buffer',
-                targetAvailability: 'Disponibilidade Alvo',
-                cyclesPerDay: 'Ciclos/Dia',
-                cabinetCapacity: 'Capacidade do Gabinete',
-                budgetBuffer: 'Buffer de Baterias',
-                previousSeason: 'Temporada Anterior',
-                newSeason: 'Plano Nova Temporada',
-                city: 'Cidade',
-                park: 'Frota',
-                frequency: 'Freq.',
-                rentalsPerDay: 'Aluguéis/dia',
-                swapsPerDay: 'Trocas/dia',
-                needed: 'Necessário',
-                have: 'Tem',
-                toOrder: 'Para Pedir',
-                total: 'TOTAL'
-            },
-            ru: {
-                title: 'JET Brasil Калькулятор Шкафов',
-                subtitle: 'Динамический • Настраиваемый • Расчеты в реальном времени',
-                citiesManagement: 'Управление Городами',
-                addCity: 'Добавить Город',
-                deleteCity: 'Удалить Город',
-                exportConfig: 'Экспорт Конфига',
-                totalCities: 'Всего городов',
-                modelParameters: 'Параметры Модели',
-                slots: 'Слотов в Шкафу',
-                chargeTime: 'Время Зарядки',
-                hoursPerDay: 'Часов в Сутки',
-                ridesPerBattery: 'Поездок на АКБ',
-                bufferCoeff: 'Коэф. Буфера',
-                targetAvailability: 'Цель Доступности',
-                cyclesPerDay: 'Циклы/сутки',
-                cabinetCapacity: 'Ёмкость Шкафа',
-                budgetBuffer: 'Буфер Батарей',
-                previousSeason: 'Прошлый Сезон',
-                newSeason: 'План Нового Сезона',
-                city: 'Город',
-                park: 'Парк',
-                frequency: 'Ч-ть',
-                rentalsPerDay: 'Аренды/сут',
-                swapsPerDay: 'Свопы/сут',
-                needed: 'Нужно',
-                have: 'Есть',
-                toOrder: 'Заказать',
-                total: 'ИТОГО'
-            }
-        };
-        function CabinetCalculator() {
-            const [language, setLanguage] = useState('pt');
-            const [isDark, setIsDark] = useState(true);
-            const t = translations[language];
-            const [params, setParams] = useState({
-                slots: 63, chargeTime: 4, hoursPerDay: 24,
-                ridesPerBattery: 5, bufferCoeff: 0.3, targetAvailability: 95
-            });
-            const [cities, setCities] = useState([
-                'Praia Grande', 'Guarujá', 'Caraguatatuba', 'Ilhabela', 'Ubatuba',
-                'Mongaguá', 'Bertioga', 'Itanhaém', 'Peruíbe'
-            ]);
-            const [prevSeason, setPrevSeason] = useState(
-                cities.reduce((acc, city) => ({ ...acc, [city]: { park: 1454, frequency: 3.4, have: 5 } }), {})
-            );
-            const [newSeason, setNewSeason] = useState(
-                cities.reduce((acc, city) => ({ ...acc, [city]: { park: 1500, frequency: 3.4, have: 3 } }), {})
-            );
-            const capacity = (params.hoursPerDay / params.chargeTime) * params.slots;
-            const calcCity = (data) => {
-                const rentals = data.park * data.frequency;
-                const swaps = rentals / params.ridesPerBattery;
-                const needed = Math.ceil(swaps / capacity);
-                return { rentals: rentals.toFixed(2), swaps: swaps.toFixed(2), needed, toOrder: Math.max(needed - data.have, 0) };
-            };
-            const calcTotal = (season) => {
-                let totalRentals = 0, totalNeeded = 0, totalHave = 0, totalToOrder = 0;
-                cities.forEach(c => {
-                    const calc = calcCity(season[c]);
-                    totalRentals += parseFloat(calc.rentals);
-                    totalNeeded += calc.needed;
-                    totalHave += season[c].have;
-                    totalToOrder += calc.toOrder;
-                });
-                return { totalRentals, totalNeeded, totalHave, totalToOrder };
-            };
-            const prevTotal = calcTotal(prevSeason);
-            const newTotal = calcTotal(newSeason);
-            const addCity = () => {
-                const name = `City ${cities.length + 1}`;
-                setCities([...cities, name]);
-                setPrevSeason({ ...prevSeason, [name]: { park: 1000, frequency: 3.0, have: 2 } });
-                setNewSeason({ ...newSeason, [name]: { park: 1000, frequency: 3.0, have: 2 } });
-            };
-            const deleteCity = (c) => {
-                setCities(cities.filter(x => x !== c));
-                const p = { ...prevSeason };
-                delete p[c];
-                setPrevSeason(p);
-                const n = { ...newSeason };
-                delete n[c];
-                setNewSeason(n);
-            };
-            const exportConfig = () => {
-                const data = JSON.stringify({ params, cities, prevSeason, newSeason }, null, 2);
-                const blob = new Blob([data], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `config-${new Date().toISOString().split('T')[0]}.json`;
-                a.click();
-            };
-            const bgGrad = isDark ? 'from-slate-900 via-slate-800 to-slate-900' : 'from-slate-50 via-slate-100 to-slate-50';
-            const textCol = isDark ? 'text-white' : 'text-slate-900';
-            const cardBg = isDark ? 'bg-slate-700/50' : 'bg-white';
-            const inputBg = isDark ? 'bg-slate-700 text-white border-slate-500' : 'bg-slate-50 text-slate-900 border-slate-300';
-            const border = isDark ? 'border-slate-600' : 'border-slate-300';
-            const Row = ({ city, data, season }) => {
-                const calc = calcCity(data);
-                return (
-                    <tr className={`border-b ${border} ${isDark ? 'hover:bg-slate-700/50' : 'hover:bg-slate-100'}`}>
-                        <td className={`px-4 py-3 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{city}</td>
-                        <td className="px-4 py-3"><input type="number" value={data.park} onChange={e => season[city].park = parseFloat(e.target.value) || 0} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
-                        <td className="px-4 py-3"><input type="number" step="0.01" value={data.frequency} onChange={e => season[city].frequency = parseFloat(e.target.value) || 0} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
-                        <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{calc.rentals}</td>
-                        <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{calc.swaps}</td>
-                        <td className={`px-4 py-3 font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{calc.needed}</td>
-                        <td className="px-4 py-3"><input type="number" value={data.have} onChange={e => season[city].have = parseFloat(e.target.value) || 0} className={`w-20 px-2 py-1 rounded border ${inputBg}`} /></td>
-                        <td className={`px-4 py-3 font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>{calc.toOrder}</td>
-                    </tr>
-                );
-            };
-            return (
-                <div className={`min-h-screen bg-gradient-to-br ${bgGrad} p-6`}>
-                    <div className="max-w-7xl mx-auto">
-                        <div className="flex justify-between items-start mb-8">
-                            <div>
-                                <h1 className={`text-4xl font-bold mb-2 ${textCol}`}>🚲 {t.title}</h1>
-                                <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>{t.subtitle}</p>
-                            </div>
-                            <div className="flex gap-3">
-                                <select value={language} onChange={e => setLanguage(e.target.value)} className={`px-4 py-2 rounded border ${inputBg}`}>
-                                    <option value="pt">🇧🇷 Português</option>
-                                    <option value="ru">🇷🇺 Русский</option>
-                                </select>
-                                <button onClick={() => setIsDark(!isDark)} className={`px-4 py-2 rounded ${isDark ? 'bg-amber-600' : 'bg-slate-700'} text-white`}>
-                                    {isDark ? '☀️' : '🌙'}
-                                </button>
-                            </div>
-                        </div>
-                        <div className={`${cardBg} rounded-lg p-6 mb-8 border ${border}`}>
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className={`text-2xl font-bold ${textCol}`}>📍 {t.citiesManagement}</h2>
-                                <div className="flex gap-2">
-                                    <button onClick={addCity} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">➕ {t.addCity}</button>
-                                    <button onClick={exportConfig} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">⬇️ {t.exportConfig}</button>
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {cities.map(c => (
-                                    <div key={c} className={`${isDark ? 'bg-slate-600/50' : 'bg-slate-200'} rounded px-3 py-2 text-sm border ${border} flex items-center gap-2`}>
-                                        <span>{c}</span>
-                                        <button onClick={() => deleteCity(c)} className={isDark ? 'text-red-400' : 'text-red-600'}>×</button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className={`${cardBg} rounded-lg p-6 mb-8 border ${border}`}>
-                            <h2 className={`text-2xl font-bold ${textCol} mb-6`}>⚙️ {t.modelParameters}</h2>
-                            <div className="grid grid-cols-3 gap-4">
-                                {[{ key: 'slots', label: t.slots }, { key: 'chargeTime', label: t.chargeTime }, { key: 'hoursPerDay', label: t.hoursPerDay }].map(({ key, label }) => (
-                                    <div key={key}>
-                                        <label className={`text-sm block mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{label}</label>
-                                        <input type="number" step="0.1" value={params[key]} onChange={e => setParams({ ...params, [key]: parseFloat(e.target.value) })} className={`w-full px-3 py-2 rounded border ${inputBg}`} />
-                                    </div>
-                                ))}
-                            </div>
-                            <div className={`mt-4 p-4 ${isDark ? 'bg-slate-600/30' : 'bg-slate-200'} rounded`}>
-                                <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.cabinetCapacity}: <span className={isDark ? 'text-amber-400' : 'text-amber-600'} style={{fontWeight: 'bold'}}>{capacity.toFixed(0)} АКБ/день</span></p>
-                            </div>
-                        </div>
-                        <div className="mb-8">
-                            <h2 className={`text-2xl font-bold ${textCol} mb-4`}>📊 {t.previousSeason}</h2>
-                            <div className={`overflow-x-auto ${cardBg} rounded-lg border ${border}`}>
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className={`border-b ${border} ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                                            <th className={`px-4 py-3 text-left ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.city}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.park}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.frequency}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.rentalsPerDay}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.swapsPerDay}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.needed}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.have}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.toOrder}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {cities.map(c => <Row key={c} city={c} data={prevSeason[c]} season={prevSeason} />)}
-                                        <tr className={`${isDark ? 'bg-slate-800' : 'bg-slate-200'} border-t-2 border-amber-600 font-bold`}>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{t.total}</td>
-                                            <td className="px-4 py-3">{Object.values(prevSeason).reduce((s, d) => s + d.park, 0)}</td>
-                                            <td colSpan="2"></td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{prevTotal.totalRentals.toFixed(0)}</td>
-                                            <td></td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>{prevTotal.totalNeeded}</td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{prevTotal.totalHave}</td>
-                                            <td className={`px-4 py-3 ${isDark ? 'text-green-400' : 'text-green-600'}`}>{prevTotal.totalToOrder}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div>
-                            <h2 className={`text-2xl font-bold ${textCol} mb-4`}>📈 {t.newSeason}</h2>
-                            <div className={`overflow-x-auto ${cardBg} rounded-lg border ${border}`}>
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className={`border-b ${border} ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                                            <th className={`px-4 py-3 text-left ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.city}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.park}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.frequency}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.rentalsPerDay}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.swapsPerDay}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.needed}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.have}</th>
-                                            <th className={`px-4 py-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t.toOrder}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {cities.map(c => <Row key={c} city={c} data={newSeason[c]} season={newSeason} />)}
+                                        {cities.map(c => newSeason[c] && <Row key={c} city={c} data={newSeason[c]} setSeason={setNewSeason} />)}
                                         <tr className={`${isDark ? 'bg-slate-800' : 'bg-slate-200'} border-t-2 border-amber-600 font-bold`}>
                                             <td className={`px-4 py-3 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{t.total}</td>
                                             <td className="px-4 py-3">{Object.values(newSeason).reduce((s, d) => s + d.park, 0)}</td>
